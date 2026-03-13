@@ -1,4 +1,4 @@
-import type { Track } from '../model/types.js';
+import type { SoundType } from '../model/types.js';
 
 /**
  * Synthesizes drum sounds using only the Web Audio API.
@@ -15,20 +15,12 @@ export class Synthesizer {
     this.destination = destination;
   }
 
-  scheduleHit(track: Track, audioTime: number): void {
-    switch (track.sound) {
-      case 'kick':
-        this.scheduleKick(audioTime, track.amplitude);
-        break;
-      case 'snare':
-        this.scheduleSnare(audioTime, track.amplitude);
-        break;
-      case 'hihat':
-        this.scheduleHihat(audioTime, track.amplitude);
-        break;
-      case 'click':
-        this.scheduleClick(audioTime, track.amplitude);
-        break;
+  scheduleHit(sound: SoundType, amplitude: number, audioTime: number): void {
+    switch (sound) {
+      case 'kick':  this.scheduleKick(audioTime, amplitude);  break;
+      case 'snare': this.scheduleSnare(audioTime, amplitude); break;
+      case 'hihat': this.scheduleHihat(audioTime, amplitude); break;
+      case 'click': this.scheduleClick(audioTime, amplitude); break;
     }
   }
 

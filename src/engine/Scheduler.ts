@@ -1,5 +1,19 @@
-import type { AppState } from '../model/types.js';
+import type { AppState, Track } from '../model/types.js';
 import type { Synthesizer } from './Synthesizer.js';
+
+/**
+ * Given a track's tpb and normalized offset [0,1), return the beat position
+ * of the first hit at or after `fromBeat`.
+ * Hit times are: offsetBeats, offsetBeats + period, offsetBeats + 2*period, …
+ */
+function firstHitAtOrAfter(fromBeat: number, track: Track): number {
+  const period = 1 / track.ticksPerBeat;
+  const offsetBeats = track.offset * period;
+  // How far past the most recent hit are we?
+  const phase = ((fromBeat - offsetBeats) % period + period) % period;
+  // If exactly on a hit (within float tolerance), start there; otherwise advance.
+  return fromBeat + (phase < 1e-9 ? 0 : period - phase);
+}
 
 // 300ms gives the main thread enough slack to process pointer events during
 // slider drags without tick() arriving too late to schedule upcoming notes.
@@ -51,7 +65,8 @@ export class Scheduler {
 
     for (const voice of state.voices) {
       for (let i = 0; i < voice.tracks.length; i++) {
-        this.nextBeat.set(`${voice.id}:${i}`, fromBeat);
+        const track = voice.tracks[i]!;
+        this.nextBeat.set(`${voice.id}:${i}`, firstHitAtOrAfter(fromBeat, track));
       }
     }
 
@@ -86,6 +101,20 @@ export class Scheduler {
       const nowBeat = (this.ctx.currentTime - this.startTime) / oldSpb;
       const newSpb = 60 / state.settings.bpm;
       this.startTime = this.ctx.currentTime - nowBeat * newSpb;
+    }
+
+    // Recompute the cursor for any track whose offset or ticksPerBeat changed,
+    // so the new phase takes effect immediately rather than being ignored.
+    const nowBeat = (this.ctx.currentTime - this.startTime) / (60 / state.settings.bpm);
+    for (const voice of state.voices) {
+      const oldVoice = this.state.voices.find(v => v.id === voice.id);
+      for (let i = 0; i < voice.tracks.length; i++) {
+        const track = voice.tracks[i]!;
+        const oldTrack = oldVoice?.tracks[i];
+        if (!oldTrack || oldTrack.offset !== track.offset || oldTrack.ticksPerBeat !== track.ticksPerBeat) {
+          this.nextBeat.set(`${voice.id}:${i}`, firstHitAtOrAfter(nowBeat, track));
+        }
+      }
     }
 
     this.state = state;
@@ -126,7 +155,7 @@ export class Scheduler {
         while (nextBeat < scheduleUntilBeat) {
           if (nextBeat >= nowBeat - 0.01) {
             const audioTime = this.startTime + nextBeat * secondsPerBeat;
-            this.synth.scheduleHit(track, audioTime);
+            this.synth.scheduleHit(voice.sound, track.amplitude, audioTime);
 
             if (this.onHit) {
               const cb = this.onHit;

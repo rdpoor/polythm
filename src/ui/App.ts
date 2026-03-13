@@ -1,8 +1,59 @@
-import type { AppState, Track } from '../model/types.js';
+import type { AppState, Track, SoundType } from '../model/types.js';
 import type { StateStore } from '../state/store.js';
 import type { AudioEngine } from '../engine/AudioEngine.js';
 
-const SOUNDS: Track['sound'][] = ['kick', 'snare', 'hihat', 'click'];
+const SOUNDS: SoundType[] = ['kick', 'snare', 'hihat', 'click'];
+
+// ── Offset snap-to-fraction (Shift+drag) ─────────────────────────────────────
+
+interface SnapPoint {
+  value: number;
+  label: string;
+}
+
+function gcd(a: number, b: number): number {
+  return b === 0 ? a : gcd(b, a % b);
+}
+
+/**
+ * Generates sorted, deduplicated snap points for the given list of denominators.
+ * Each point is n/d in lowest terms, with label "0" or "n/d".
+ */
+function buildSnapPoints(denoms: number[]): SnapPoint[] {
+  const seen = new Map<number, SnapPoint>();
+  for (const d of denoms) {
+    for (let n = 0; n < d; n++) {
+      const g = gcd(n, d);
+      const rn = n / g;
+      const rd = d / g;
+      const value = rn / rd;
+      if (!seen.has(value)) {
+        seen.set(value, { value, label: rn === 0 ? '0' : `${rn}/${rd}` });
+      }
+    }
+  }
+  return [...seen.values()].sort((a, b) => a.value - b.value);
+}
+
+const OFFSET_SNAPS = buildSnapPoints([1, 2, 3, 4, 6, 8]);
+
+/** Returns the snap point nearest to raw by absolute distance. */
+function quantizeOffset(raw: number, snaps: SnapPoint[]): SnapPoint {
+  let best = snaps[0]!;
+  let bestDist = Math.abs(raw - best.value);
+  for (const snap of snaps) {
+    const dist = Math.abs(raw - snap.value);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = snap;
+    }
+  }
+  return best;
+}
+
+let shiftHeld = false;
+document.addEventListener('keydown', (e) => { if (e.key === 'Shift') { shiftHeld = true; } });
+document.addEventListener('keyup', (e) => { if (e.key === 'Shift') { shiftHeld = false; } });
 
 /**
  * Parse a ticks-per-beat string. Accepts:
@@ -39,6 +90,27 @@ function parseTpb(raw: string): number | null {
   return isFinite(n) ? n : null;
 }
 
+// ── dB ↔ gain conversion ──────────────────────────────────────────────────
+
+const MIN_DB = -60;
+
+/** Linear gain → dB, clamped to MIN_DB. */
+function gainToDb(gain: number): number {
+  if (gain <= 0) { return MIN_DB; }
+  return Math.max(MIN_DB, 20 * Math.log10(gain));
+}
+
+/** dB → linear gain. Returns exact 0 at or below MIN_DB (true silence). */
+function dbToGain(db: number): number {
+  if (db <= MIN_DB) { return 0; }
+  return Math.pow(10, db / 20);
+}
+
+/** Format a dB value for display. */
+function fmtDb(db: number): string {
+  return db <= MIN_DB ? '−∞' : `${Math.round(db)} dB`;
+}
+
 let voiceIdCounter = 10;
 
 function newVoiceId(): string {
@@ -52,6 +124,10 @@ export class App {
   private isPlaying = false;
   private btnPlay!: HTMLButtonElement;
   private btnPause!: HTMLButtonElement;
+  private bpmSlider!: HTMLInputElement;
+  private bpmDisplay!: HTMLSpanElement;
+  private volSlider!: HTMLInputElement;
+  private volDisplay!: HTMLSpanElement;
 
   constructor(store: StateStore, engine: AudioEngine) {
     this.store = store;
@@ -99,6 +175,15 @@ export class App {
     title.textContent = 'POLYTHM';
     header.appendChild(title);
 
+    const btnHelp = document.createElement('button');
+    btnHelp.className = 'btn-help';
+    btnHelp.textContent = '?';
+    btnHelp.title = 'Help';
+    btnHelp.addEventListener('click', () => {
+      (document.getElementById('help-dialog') as HTMLDialogElement).showModal();
+    });
+    header.appendChild(btnHelp);
+
     // Transport buttons
     const transport = document.createElement('div');
     transport.className = 'transport';
@@ -120,27 +205,41 @@ export class App {
 
     const { bpm, masterVolume } = this.store.getState().settings;
 
-    settings.appendChild(
-      this.mkSliderRow('BPM', 40, 240, 1, bpm, (val) => {
-        this.patchSettings({ bpm: val });
-      })
-    );
-    settings.appendChild(
-      this.mkSliderRow('VOL', 0, 1, 0.05, masterVolume, (val) => {
-        this.patchSettings({ masterVolume: val });
-      }, (v) => `${Math.round(v * 100)}%`)
-    );
+    const bpmRow = this.mkSliderRow('BPM', 40, 240, 1, bpm, (val) => {
+      this.patchSettings({ bpm: val });
+    });
+    this.bpmSlider = bpmRow.slider;
+    this.bpmDisplay = bpmRow.display;
+    settings.appendChild(bpmRow.row);
+
+    const volRow = this.mkSliderRow('VOL', MIN_DB, 0, 1, gainToDb(masterVolume), (db) => {
+      this.patchSettings({ masterVolume: dbToGain(db) });
+    }, fmtDb);
+    this.volSlider = volRow.slider;
+    this.volDisplay = volRow.display;
+    settings.appendChild(volRow.row);
 
     header.appendChild(settings);
 
-    const btnHelp = document.createElement('button');
-    btnHelp.className = 'btn-help';
-    btnHelp.textContent = '?';
-    btnHelp.title = 'Help';
-    btnHelp.addEventListener('click', () => {
-      (document.getElementById('help-dialog') as HTMLDialogElement).showModal();
-    });
-    header.appendChild(btnHelp);
+    // File save / load
+    const fileActions = document.createElement('div');
+    fileActions.className = 'file-actions';
+
+    const btnSave = document.createElement('button');
+    btnSave.className = 'btn';
+    btnSave.textContent = '⬇ Save';
+    btnSave.title = 'Save state to file';
+    btnSave.addEventListener('click', () => this.saveToFile());
+    fileActions.appendChild(btnSave);
+
+    const btnLoad = document.createElement('button');
+    btnLoad.className = 'btn';
+    btnLoad.textContent = '⬆ Load';
+    btnLoad.title = 'Load state from file';
+    btnLoad.addEventListener('click', () => this.loadFromFile());
+    fileActions.appendChild(btnLoad);
+
+    header.appendChild(fileActions);
 
     return header;
   }
@@ -188,7 +287,9 @@ export class App {
 
     panel.appendChild(this.helpSection('Global Controls', [
       ['BPM', 'Tempo in beats per minute (40 – 240).'],
-      ['VOL', 'Master output volume.'],
+      ['VOL', 'Master output level in dB (−60 dB = silence, 0 dB = full).'],
+      ['⬇ Save', 'Download the current session as a JSON file.'],
+      ['⬆ Load', 'Restore a previously saved JSON file, replacing the current session.'],
     ]));
 
     panel.appendChild(this.helpSection('Voices', [
@@ -202,7 +303,8 @@ export class App {
     panel.appendChild(this.helpSection('Tracks', [
       ['Sound', 'Synthesized drum sound: kick · snare · hihat · click.'],
       ['tpb', 'Ticks per beat — how many evenly-spaced hits this track fires per beat.\nAccepts integers ("3"), decimals ("2.333"), fractions ("7/3"), or mixed numbers ("2 1/3").\nRange: 0.25 – 16.'],
-      ['Amplitude', 'Per-track volume (0 – 1). The coloured dot on the left flashes on every hit.'],
+      ['Amplitude', 'Per-track level in dB (−60 dB = silence, 0 dB = full). The dot on the left flashes on every hit.'],
+      ['off', 'Phase offset (0 – 1). Delays every hit by offset × (1 / tpb) beats. 0 = no delay, 1 = one full period (same as 0).'],
       ['✕ (track)', 'Remove this track from the voice. Disabled when only one track remains.'],
       ['+ Add Track', 'Append a new hihat track to this voice.'],
     ]));
@@ -299,6 +401,27 @@ export class App {
     label.textContent = voiceId.replace('-', '\u00A0');
     header.appendChild(label);
 
+    // Sound selector
+    const soundSel = document.createElement('select');
+    soundSel.className = 'sound-select';
+    for (const s of SOUNDS) {
+      const opt = document.createElement('option');
+      opt.value = s;
+      opt.textContent = s;
+      opt.selected = s === voice.sound;
+      soundSel.appendChild(opt);
+    }
+    soundSel.addEventListener('change', () => {
+      this.store.setState(prev => ({
+        ...prev,
+        voices: prev.voices.map(v =>
+          v.id === voiceId ? { ...v, sound: soundSel.value as SoundType } : v
+        ),
+      }));
+      if (this.isPlaying) { this.engine.updateState(this.store.getState()); }
+    });
+    header.appendChild(soundSel);
+
     // Mute / Solo
     const btnMute = document.createElement('button');
     btnMute.className = 'btn-ms' + (voice.muted ? ' ms-mute-active' : '');
@@ -369,7 +492,7 @@ export class App {
         ...prev,
         voices: prev.voices.map(v =>
           v.id === voiceId
-            ? { ...v, tracks: [...v.tracks, { sound: 'hihat' as const, ticksPerBeat: 2, amplitude: 0.5 }] }
+            ? { ...v, tracks: [...v.tracks, { ticksPerBeat: 2, amplitude: 0.5, offset: 0 }] }
             : v
         ),
       }));
@@ -394,21 +517,6 @@ export class App {
     dot.dataset['voiceId'] = voiceId;
     dot.dataset['trackIndex'] = String(trackIndex);
     row.appendChild(dot);
-
-    // Sound select
-    const soundSel = document.createElement('select');
-    soundSel.className = 'sound-select';
-    for (const s of SOUNDS) {
-      const opt = document.createElement('option');
-      opt.value = s;
-      opt.textContent = s;
-      opt.selected = s === track.sound;
-      soundSel.appendChild(opt);
-    }
-    soundSel.addEventListener('change', () => {
-      this.patchTrack(voiceId, trackIndex, { sound: soundSel.value as Track['sound'] });
-    });
-    row.appendChild(soundSel);
 
     // Ticks-per-beat
     const tpbWrap = document.createElement('label');
@@ -437,26 +545,58 @@ export class App {
     tpbWrap.append(tpbLabel, tpbInput);
     row.appendChild(tpbWrap);
 
-    // Amplitude
+    // Offset (immediately after tpb, expands to fill available space)
+    const offWrap = document.createElement('label');
+    offWrap.className = 'off-wrap';
+
+    const offLabel = document.createElement('span');
+    offLabel.className = 'dim';
+    offLabel.textContent = 'off';
+
+    const offSlider = document.createElement('input');
+    offSlider.type = 'range';
+    offSlider.className = 'off-slider';
+    offSlider.min = '0';
+    offSlider.max = '1';
+    offSlider.step = '0.01';
+    offSlider.value = String(track.offset);
+
+    const offVal = document.createElement('span');
+    offVal.className = 'off-val dim';
+    offVal.textContent = track.offset.toFixed(2);
+
+    offSlider.addEventListener('input', () => {
+      const raw = parseFloat(offSlider.value);
+      const snapped = shiftHeld ? quantizeOffset(raw, OFFSET_SNAPS) : null;
+      const val = snapped?.value ?? raw;
+      offVal.textContent = snapped?.label ?? raw.toFixed(2);
+      offSlider.value = String(val);
+      this.patchTrack(voiceId, trackIndex, { offset: val });
+    });
+
+    offWrap.append(offLabel, offSlider, offVal);
+    row.appendChild(offWrap);
+
+    // Amplitude (far right)
     const ampWrap = document.createElement('label');
     ampWrap.className = 'amp-wrap';
 
     const ampSlider = document.createElement('input');
     ampSlider.type = 'range';
     ampSlider.className = 'amp-slider';
-    ampSlider.min = '0';
-    ampSlider.max = '1';
-    ampSlider.step = '0.05';
-    ampSlider.value = String(track.amplitude);
+    ampSlider.min = String(MIN_DB);
+    ampSlider.max = '0';
+    ampSlider.step = '1';
+    ampSlider.value = String(gainToDb(track.amplitude));
 
     const ampVal = document.createElement('span');
     ampVal.className = 'amp-val dim';
-    ampVal.textContent = track.amplitude.toFixed(2);
+    ampVal.textContent = fmtDb(gainToDb(track.amplitude));
 
     ampSlider.addEventListener('input', () => {
-      const val = parseFloat(ampSlider.value);
-      ampVal.textContent = val.toFixed(2);
-      this.patchTrack(voiceId, trackIndex, { amplitude: val });
+      const db = parseFloat(ampSlider.value);
+      ampVal.textContent = fmtDb(db);
+      this.patchTrack(voiceId, trackIndex, { amplitude: dbToGain(db) });
     });
 
     ampWrap.append(ampSlider, ampVal);
@@ -509,7 +649,7 @@ export class App {
       ...prev,
       voices: [
         ...prev.voices,
-        { id, tracks: [{ sound: 'kick' as const, ticksPerBeat: 1, amplitude: 0.8 }] },
+        { id, sound: 'kick' as const, tracks: [{ ticksPerBeat: 1, amplitude: 0.8, offset: 0 }] },
       ],
     }));
     if (this.isPlaying) {
@@ -537,6 +677,80 @@ export class App {
     return btn;
   }
 
+  private syncSettingsControls(settings: AppState['settings']): void {
+    this.bpmSlider.value = String(settings.bpm);
+    this.bpmDisplay.textContent = String(settings.bpm);
+    const db = gainToDb(settings.masterVolume);
+    this.volSlider.value = String(db);
+    this.volDisplay.textContent = fmtDb(db);
+  }
+
+  // ── File save / load ─────────────────────────────────────────────────────
+
+  private saveToFile(): void {
+    const state = this.store.getState();
+    const json = JSON.stringify(state, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'polythm.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  private loadFromFile(): void {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,application/json';
+    input.addEventListener('change', () => {
+      const file = input.files?.[0];
+      if (!file) { return; }
+      const reader = new FileReader();
+      reader.addEventListener('load', () => {
+        try {
+          const parsed = JSON.parse(reader.result as string) as AppState;
+          if (!this.isValidState(parsed)) {
+            console.error('Invalid Polythm state file.');
+            return;
+          }
+          this.store.setState(() => parsed);
+          if (this.isPlaying) { this.engine.updateState(parsed); }
+          this.syncSettingsControls(parsed.settings);
+          this.renderVoices();
+        } catch (err) {
+          console.error('Failed to load state file:', err);
+        }
+      });
+      reader.readAsText(file);
+    });
+    input.click();
+  }
+
+  /** Lightweight structural validation so bad files fail loudly. */
+  private isValidState(s: unknown): s is AppState {
+    if (typeof s !== 'object' || s === null) { return false; }
+    const obj = s as Record<string, unknown>;
+    if (typeof obj['settings'] !== 'object' || obj['settings'] === null) { return false; }
+    const settings = obj['settings'] as Record<string, unknown>;
+    if (typeof settings['bpm'] !== 'number') { return false; }
+    if (typeof settings['masterVolume'] !== 'number') { return false; }
+    if (!Array.isArray(obj['voices'])) { return false; }
+    for (const v of obj['voices'] as unknown[]) {
+      if (typeof v !== 'object' || v === null) { return false; }
+      const voice = v as Record<string, unknown>;
+      if (typeof voice['id'] !== 'string') { return false; }
+      if (!Array.isArray(voice['tracks'])) { return false; }
+      for (const t of voice['tracks'] as unknown[]) {
+        if (typeof t !== 'object' || t === null) { return false; }
+        const track = t as Record<string, unknown>;
+        if (typeof track['ticksPerBeat'] !== 'number') { return false; }
+        if (typeof track['amplitude'] !== 'number') { return false; }
+      }
+    }
+    return true;
+  }
+
   private mkSliderRow(
     labelText: string,
     min: number,
@@ -545,7 +759,7 @@ export class App {
     initial: number,
     onChange: (val: number) => void,
     format: (v: number) => string = (v) => String(v),
-  ): HTMLElement {
+  ): { row: HTMLElement; slider: HTMLInputElement; display: HTMLSpanElement } {
     const row = document.createElement('div');
     row.className = 'setting-row';
 
@@ -573,6 +787,6 @@ export class App {
       onChange(val);
     });
 
-    return row;
+    return { row, slider, display };
   }
 }
