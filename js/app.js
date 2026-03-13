@@ -12,6 +12,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let audioInitialized = false;
 
+  // ── Sample options (must be defined before renderVoices) ─────────────────
+  const SAMPLE_OPTIONS = [
+    { value: 'kick',         label: 'Kick' },
+    { value: 'snare',        label: 'Snare' },
+    { value: 'hihat_closed', label: 'Hi-Hat (closed)' },
+    { value: 'hihat_open',   label: 'Hi-Hat (open)' },
+    { value: 'cowbell',      label: 'Cowbell' },
+    { value: 'tom',          label: 'Tom' },
+    { value: 'rim',          label: 'Rim' },
+    { value: 'clap',         label: 'Clap' }
+  ];
+
   // ── Default voices ────────────────────────────────────────────────────────
   const v1 = engine.addVoice({ name: 'Kick', sampleType: 'kick' });
   engine.addTrack(v1.id, { ticksPerBeat: 1, amplitude: 0.9, delay: 0, color: '#ff6b6b' });
@@ -241,17 +253,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Voice rendering ───────────────────────────────────────────────────────
 
-  const SAMPLE_OPTIONS = [
-    { value: 'kick',         label: 'Kick' },
-    { value: 'snare',        label: 'Snare' },
-    { value: 'hihat_closed', label: 'Hi-Hat (closed)' },
-    { value: 'hihat_open',   label: 'Hi-Hat (open)' },
-    { value: 'cowbell',      label: 'Cowbell' },
-    { value: 'tom',          label: 'Tom' },
-    { value: 'rim',          label: 'Rim' },
-    { value: 'clap',         label: 'Clap' }
-  ];
-
   function renderVoices() {
     const list        = document.getElementById('voices-list');
     const scrollTop   = list.scrollTop;
@@ -332,8 +333,8 @@ document.addEventListener('DOMContentLoaded', () => {
     muteBtn.className   = 'btn-mute' + (voice.mute ? ' active' : '');
     muteBtn.textContent = 'M';
     muteBtn.addEventListener('click', () => {
+      // voice is the live engine state reference; updateVoice mutates it in-place
       engine.updateVoice(voice.id, { mute: !voice.mute });
-      voice.mute = !voice.mute;
       muteBtn.classList.toggle('active', voice.mute);
     });
 
@@ -342,8 +343,8 @@ document.addEventListener('DOMContentLoaded', () => {
     soloBtn.className   = 'btn-solo' + (voice.solo ? ' active' : '');
     soloBtn.textContent = 'S';
     soloBtn.addEventListener('click', () => {
+      // voice is the live engine state reference; updateVoice mutates it in-place
       engine.updateVoice(voice.id, { solo: !voice.solo });
-      voice.solo = !voice.solo;
       soloBtn.classList.toggle('active', voice.solo);
     });
 

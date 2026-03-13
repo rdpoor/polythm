@@ -52,6 +52,9 @@
 
       const ppb        = this.pixelsPerBeat;
       const playheadX  = Math.floor(W * 0.33);
+      // worldOffset: pixel x where beat 0 would be drawn.
+      // A beat at position B renders at x = worldOffset + B * ppb,
+      // so the current beat always lands exactly on the playhead.
       const worldOffset = playheadX - currentBeat * ppb;
 
       const meter   = this._engine.meter || 4;

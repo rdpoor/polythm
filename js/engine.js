@@ -159,10 +159,10 @@
       this.state = JSON.parse(JSON.stringify(state));
       // Resync counters so new IDs won't collide
       for (const voice of this.state.voices) {
-        const vNum = parseInt(voice.id.replace('v', ''), 10);
+        const vNum = parseInt(voice.id.replace(/^v/, ''), 10);
         if (!isNaN(vNum) && vNum > _voiceCounter) _voiceCounter = vNum;
         for (const track of voice.tracks) {
-          const tNum = parseInt(track.id.replace('t', ''), 10);
+          const tNum = parseInt(track.id.replace(/^t/, ''), 10);
           if (!isNaN(tNum) && tNum > _trackCounter) _trackCounter = tNum;
         }
       }

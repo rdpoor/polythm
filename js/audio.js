@@ -158,6 +158,7 @@
       const gain = ctx.createGain();
       osc.type = 'sine';
       osc.frequency.setValueAtTime(150, t);
+      // exponentialRampToValueAtTime cannot ramp to 0; use a small positive floor
       osc.frequency.exponentialRampToValueAtTime(0.01, t + 0.5);
       gain.gain.setValueAtTime(1, t);
       gain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
