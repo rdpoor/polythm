@@ -45,6 +45,10 @@ export class AudioEngine {
       this.scheduler.onHit = this._onHit;
     }
 
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+
     this.lastBpm = state.settings.bpm;
     this.masterGain!.gain.setValueAtTime(state.settings.masterVolume, this.ctx.currentTime);
 

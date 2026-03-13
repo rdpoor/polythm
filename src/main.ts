@@ -10,7 +10,7 @@ const defaultState: AppState = {
   voices: [
     {
       id: 'voice-1',
-      sound: 'kick',
+      sound: 36,
       tracks: [
         { ticksPerBeat: 1, amplitude: 0.9, offset: 0 },
         { ticksPerBeat: 2, amplitude: 0.5, offset: 0 },
@@ -18,7 +18,7 @@ const defaultState: AppState = {
     },
     {
       id: 'voice-2',
-      sound: 'snare',
+      sound: 38,
       tracks: [
         { ticksPerBeat: 2 / 3, amplitude: 0.7, offset: 0 },
         { ticksPerBeat: 3, amplitude: 0.6, offset: 0 },
@@ -36,7 +36,13 @@ function loadState(): AppState {
 
     // Migrate: fill in fields added after the first release so old saved
     // states don't cause crashes or silent misbehaviour.
+    const legacySoundMap: Record<string, number> = {
+      kick: 36, snare: 38, hihat: 42, click: 75,
+    };
     for (const voice of parsed.voices) {
+      if (typeof voice.sound === 'string') {
+        voice.sound = legacySoundMap[voice.sound as string] ?? 36;
+      }
       for (const track of voice.tracks) {
         if (track.offset === undefined) { track.offset = 0; }
       }

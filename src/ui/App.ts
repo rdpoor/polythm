@@ -1,8 +1,11 @@
 import type { AppState, Track, SoundType } from '../model/types.js';
+import { GM_PERCUSSION } from '../model/types.js';
 import type { StateStore } from '../state/store.js';
 import type { AudioEngine } from '../engine/AudioEngine.js';
 
-const SOUNDS: SoundType[] = ['kick', 'snare', 'hihat', 'click'];
+const GM_ENTRIES = Object.entries(GM_PERCUSSION)
+  .map(([k, v]) => ({ note: Number(k), name: v }))
+  .sort((a, b) => a.note - b.note);
 
 // ── Offset snap-to-fraction (Shift+drag) ─────────────────────────────────────
 
@@ -301,7 +304,7 @@ export class App {
     ]));
 
     panel.appendChild(this.helpSection('Tracks', [
-      ['Sound', 'Synthesized drum sound: kick · snare · hihat · click.'],
+      ['Sound', 'GM percussion instrument (MIDI notes 35–81). Samples loaded from CDN on first play.'],
       ['tpb', 'Ticks per beat — how many evenly-spaced hits this track fires per beat.\nAccepts integers ("3"), decimals ("2.333"), fractions ("7/3"), or mixed numbers ("2 1/3").\nRange: 0.25 – 16.'],
       ['Amplitude', 'Per-track level in dB (−60 dB = silence, 0 dB = full). The dot on the left flashes on every hit.'],
       ['off', 'Phase offset (0 – 1). Delays every hit by offset × (1 / tpb) beats. 0 = no delay, 1 = one full period (same as 0).'],
@@ -404,18 +407,18 @@ export class App {
     // Sound selector
     const soundSel = document.createElement('select');
     soundSel.className = 'sound-select';
-    for (const s of SOUNDS) {
+    for (const entry of GM_ENTRIES) {
       const opt = document.createElement('option');
-      opt.value = s;
-      opt.textContent = s;
-      opt.selected = s === voice.sound;
+      opt.value = String(entry.note);
+      opt.textContent = entry.name;
+      opt.selected = entry.note === voice.sound;
       soundSel.appendChild(opt);
     }
     soundSel.addEventListener('change', () => {
       this.store.setState(prev => ({
         ...prev,
         voices: prev.voices.map(v =>
-          v.id === voiceId ? { ...v, sound: soundSel.value as SoundType } : v
+          v.id === voiceId ? { ...v, sound: Number(soundSel.value) as SoundType } : v
         ),
       }));
       if (this.isPlaying) { this.engine.updateState(this.store.getState()); }
@@ -649,7 +652,7 @@ export class App {
       ...prev,
       voices: [
         ...prev.voices,
-        { id, sound: 'kick' as const, tracks: [{ ticksPerBeat: 1, amplitude: 0.8, offset: 0 }] },
+        { id, sound: 36, tracks: [{ ticksPerBeat: 1, amplitude: 0.8, offset: 0 }] },
       ],
     }));
     if (this.isPlaying) {
@@ -740,6 +743,7 @@ export class App {
       if (typeof v !== 'object' || v === null) { return false; }
       const voice = v as Record<string, unknown>;
       if (typeof voice['id'] !== 'string') { return false; }
+      if (typeof voice['sound'] !== 'number') { return false; }
       if (!Array.isArray(voice['tracks'])) { return false; }
       for (const t of voice['tracks'] as unknown[]) {
         if (typeof t !== 'object' || t === null) { return false; }
