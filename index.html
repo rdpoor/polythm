@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Polythm</title>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      :root {
+        --bg:      #0d0d0d;
+        --panel:   #141414;
+        --border:  #252525;
+        --text:    #ccc;
+        --dim:     #555;
+        --accent:  #3af;
+        --red:     #e55;
+        --flash:   #3af;
+        --radius:  4px;
+      }
+
+      body {
+        font-family: 'Courier New', monospace;
+        font-size: 13px;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 2rem 1rem 4rem;
+      }
+
+      #app {
+        width: 100%;
+        max-width: 700px;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+      }
+
+      /* ── Header ─────────────────────────────────────────── */
+
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--border);
+      }
+
+      h1 {
+        font-size: 1.3rem;
+        letter-spacing: 0.35em;
+        color: var(--accent);
+        margin-right: auto;
+      }
+
+      .transport { display: flex; gap: 0.4rem; }
+
+      .btn {
+        padding: 0.4rem 0.85rem;
+        background: var(--panel);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 1rem;
+        line-height: 1;
+      }
+      .btn:hover { border-color: var(--accent); }
+      .btn.active { border-color: var(--accent); color: var(--accent); }
+
+      .global-settings {
+        display: flex;
+        gap: 1.25rem;
+        align-items: center;
+      }
+
+      .setting-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .setting-label {
+        color: var(--dim);
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
+        min-width: 2.5rem;
+      }
+
+      .setting-value {
+        min-width: 3rem;
+        font-size: 0.8rem;
+      }
+
+      /* ── Voice panels ────────────────────────────────────── */
+
+      #voices {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+
+      .voice-panel {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+
+      .voice-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.35rem 0.75rem;
+        background: #0f0f0f;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .voice-label {
+        font-size: 0.7rem;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--dim);
+      }
+
+      .btn-icon {
+        background: none;
+        border: none;
+        color: var(--dim);
+        cursor: pointer;
+        font-size: 0.75rem;
+        padding: 0.1rem 0.3rem;
+        border-radius: 2px;
+        line-height: 1;
+      }
+      .btn-icon:hover { color: var(--red); }
+
+      .btn-ms {
+        font-family: inherit;
+        font-size: 0.65rem;
+        font-weight: bold;
+        letter-spacing: 0.05em;
+        width: 18px;
+        height: 18px;
+        padding: 0;
+        border-radius: 3px;
+        cursor: pointer;
+        background: #1e1e1e;
+        border: 1px solid #333;
+        color: var(--dim);
+        line-height: 1;
+      }
+      .btn-ms:hover { border-color: #555; color: var(--text); }
+      .ms-mute-active { background: #7a3a00; border-color: #c06000; color: #ffaa44; }
+      .ms-solo-active { background: #5a5a00; border-color: #aaaa00; color: #ffff44; }
+
+      /* ── Track rows ──────────────────────────────────────── */
+
+      .track-list { padding: 0; }
+
+      .track-row {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        padding: 0.45rem 0.75rem;
+        border-bottom: 1px solid #181818;
+      }
+      .track-row:last-child { border-bottom: none; }
+
+      .hit-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #272727;
+        flex-shrink: 0;
+        transition: background 0.04s;
+      }
+      .hit-dot.flash { background: var(--flash); }
+
+      .sound-select {
+        background: var(--panel);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 0.2rem 0.35rem;
+        font-family: inherit;
+        font-size: 0.8rem;
+        width: 68px;
+      }
+
+      .tpb-wrap {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+      }
+
+      .dim { color: var(--dim); font-size: 0.75rem; }
+
+      .tpb-input {
+        width: 58px;
+        background: var(--panel);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 0.2rem 0.35rem;
+        font-family: inherit;
+        font-size: 0.8rem;
+        text-align: right;
+      }
+
+      .amp-wrap {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        margin-left: auto;
+      }
+
+      .amp-slider {
+        width: 80px;
+        accent-color: var(--accent);
+      }
+
+      .amp-val { min-width: 2.8rem; text-align: right; }
+
+      /* ── Voice / global footers ──────────────────────────── */
+
+      .voice-footer {
+        padding: 0.35rem 0.75rem;
+        background: #0f0f0f;
+        border-top: 1px solid var(--border);
+      }
+
+      .btn-dashed {
+        width: 100%;
+        background: none;
+        border: 1px dashed var(--border);
+        color: var(--dim);
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 0.75rem;
+        padding: 0.3rem;
+        border-radius: var(--radius);
+        text-align: center;
+      }
+      .btn-dashed:hover { border-color: var(--accent); color: var(--accent); }
+
+      #footer { width: 100%; }
+
+      .btn-add-voice {
+        width: 100%;
+        background: none;
+        border: 1px dashed var(--border);
+        color: var(--dim);
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 0.8rem;
+        padding: 0.55rem;
+        border-radius: var(--radius);
+        text-align: center;
+      }
+      .btn-add-voice:hover { border-color: var(--accent); color: var(--accent); }
+
+      /* ── Range inputs ────────────────────────────────────── */
+
+      input[type=range] {
+        cursor: pointer;
+        accent-color: var(--accent);
+      }
+
+      input[type=number]::-webkit-inner-spin-button,
+      input[type=number]::-webkit-outer-spin-button {
+        opacity: 0.4;
+      }
+
+      /* ── Help button ─────────────────────────────────────── */
+
+      .btn-help {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: none;
+        border: 1px solid var(--dim);
+        color: var(--dim);
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 0.8rem;
+        line-height: 1;
+        padding: 0;
+        flex-shrink: 0;
+      }
+      .btn-help:hover { border-color: var(--accent); color: var(--accent); }
+
+      /* ── Help dialog ─────────────────────────────────────── */
+
+      #help-dialog {
+        background: transparent;
+        border: none;
+        padding: 0;
+        max-width: 100vw;
+        max-height: 100vh;
+      }
+
+      /* dim backdrop */
+      #help-dialog::backdrop {
+        background: rgba(0, 0, 0, 0.72);
+      }
+
+      .help-panel {
+        background: #181818;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 1.5rem;
+        width: min(560px, 92vw);
+        max-height: 85vh;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        color: var(--text);
+        font-family: 'Courier New', monospace;
+      }
+
+      .help-title-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .help-title-row h2 {
+        font-size: 0.95rem;
+        letter-spacing: 0.2em;
+        color: var(--accent);
+      }
+
+      .help-close {
+        font-size: 0.9rem;
+      }
+      .help-close:hover { color: var(--red); }
+
+      .help-section h3 {
+        font-size: 0.7rem;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--dim);
+        margin-bottom: 0.6rem;
+        padding-bottom: 0.3rem;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .help-section table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+
+      .help-section tr + tr td {
+        padding-top: 0.45rem;
+      }
+
+      .help-term {
+        font-size: 0.8rem;
+        color: var(--accent);
+        white-space: nowrap;
+        padding-right: 1rem;
+        vertical-align: top;
+        min-width: 6rem;
+      }
+
+      .help-desc {
+        font-size: 0.8rem;
+        color: #aaa;
+        line-height: 1.5;
+      }
+
+      .help-tip {
+        font-size: 0.75rem;
+        color: var(--dim);
+        border-top: 1px solid var(--border);
+        padding-top: 1rem;
+        line-height: 1.5;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
