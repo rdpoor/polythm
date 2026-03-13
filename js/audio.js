@@ -158,9 +158,9 @@
       const gain = ctx.createGain();
       osc.type = 'sine';
       osc.frequency.setValueAtTime(150, t);
-      osc.frequency.exponentialRampToValueAtTime(0.001, t + 0.5);
+      osc.frequency.exponentialRampToValueAtTime(0.01, t + 0.5);
       gain.gain.setValueAtTime(1, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+      gain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
       osc.connect(gain);
       gain.connect(dest);
       osc.start(t);
@@ -184,7 +184,7 @@
 
       const noiseGain = ctx.createGain();
       noiseGain.gain.setValueAtTime(0.7, t);
-      noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+      noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
 
       noise.connect(bpFilter);
       bpFilter.connect(noiseGain);
@@ -198,7 +198,7 @@
       osc.frequency.value = 200;
       const oscGain  = ctx.createGain();
       oscGain.gain.setValueAtTime(0.4, t);
-      oscGain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+      oscGain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
       osc.connect(oscGain);
       oscGain.connect(dest);
       osc.start(t);
@@ -230,7 +230,7 @@
 
       const gain    = ctx.createGain();
       gain.gain.setValueAtTime(1, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + decay);
+      gain.gain.exponentialRampToValueAtTime(0.01, t + decay);
 
       noise.connect(filter);
       filter.connect(gain);
@@ -248,7 +248,7 @@
         osc.frequency.value = freq;
         const gain = ctx.createGain();
         gain.gain.setValueAtTime(0.5, t);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + decay);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + decay);
         osc.connect(gain);
         gain.connect(dest);
         osc.start(t);
@@ -263,7 +263,7 @@
       osc.frequency.exponentialRampToValueAtTime(40, t + 0.4);
       const gain = ctx.createGain();
       gain.gain.setValueAtTime(1, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+      gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
       osc.connect(gain);
       gain.connect(dest);
       osc.start(t);
@@ -276,7 +276,7 @@
       osc.frequency.value = 1200;
       const gain = ctx.createGain();
       gain.gain.setValueAtTime(0.8, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
       osc.connect(gain);
       gain.connect(dest);
       osc.start(t);
@@ -302,7 +302,7 @@
 
         const gain   = ctx.createGain();
         gain.gain.setValueAtTime(0.6, offset);
-        gain.gain.exponentialRampToValueAtTime(0.001, offset + decay);
+        gain.gain.exponentialRampToValueAtTime(0.01, offset + decay);
 
         noise.connect(bp);
         bp.connect(gain);

@@ -9,6 +9,8 @@
     '#e17055', '#74b9ff', '#55efc4', '#fdcb6e'
   ];
 
+  const MAX_EVENTS_PER_RANGE = 10000;
+
   let _voiceCounter = 0;
   let _trackCounter = 0;
 
@@ -136,11 +138,11 @@
               volume:     voice.volume
             });
 
-            if (events.length >= 10000) break;
+            if (events.length >= MAX_EVENTS_PER_RANGE) break;
           }
-          if (events.length >= 10000) break;
+          if (events.length >= MAX_EVENTS_PER_RANGE) break;
         }
-        if (events.length >= 10000) break;
+        if (events.length >= MAX_EVENTS_PER_RANGE) break;
       }
 
       events.sort((a, b) => a.beat - b.beat);

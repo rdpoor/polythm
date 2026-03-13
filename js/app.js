@@ -384,8 +384,6 @@ document.addEventListener('DOMContentLoaded', () => {
         delay: 0
       });
       if (track) {
-        // Refresh the voice object reference
-        const freshVoice = engine.getVoice(voice.id);
         tracksContainer.appendChild(buildTrackRow(voice.id, track));
       }
     });
