@@ -126,3 +126,10 @@ Click **+ Add Voice** at the bottom of the page to create a new voice. Click **â
 ### Keyboard shortcut
 
 **Space** toggles play/pause as long as no text field is focused.
+
+## TODO
+
+* Replace synthesized drum sounds with CDN samples
+* Add left-right pan to each track
+* Export to MIDI
+* Export to .wav
