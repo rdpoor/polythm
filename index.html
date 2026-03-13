@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Polythm – Polyrhythm Explorer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <header id="toolbar">
+      <div class="toolbar-brand">
+        <span class="brand-name">Polythm</span>
+      </div>
+      <div class="toolbar-section" id="global-settings">
+        <div class="setting-group">
+          <label for="input-bpm">BPM</label>
+          <input type="number" id="input-bpm" min="20" max="300" step="1" value="120">
+        </div>
+        <div class="setting-group">
+          <label for="input-meter">Meter</label>
+          <input type="number" id="input-meter" min="1" max="16" step="1" value="4">
+        </div>
+        <div class="setting-group setting-group--disabled" title="Swing: planned, not yet implemented">
+          <label for="input-swing">Swing%</label>
+          <input type="number" id="input-swing" min="0" max="100" step="1" value="0" disabled>
+        </div>
+      </div>
+      <div class="toolbar-section" id="transport">
+        <button id="btn-rewind" title="Rewind">⏮</button>
+        <button id="btn-play" title="Play">▶</button>
+        <button id="btn-pause" title="Pause" disabled>⏸</button>
+      </div>
+      <div class="toolbar-section" id="zoom-controls">
+        <button id="btn-zoom-out" title="Zoom Out">−</button>
+        <span id="zoom-label">Zoom</span>
+        <button id="btn-zoom-in" title="Zoom In">+</button>
+      </div>
+      <div class="toolbar-section" id="preset-controls">
+        <button id="btn-save-preset" title="Save Preset">💾</button>
+        <button id="btn-load-preset" title="Load Preset">📂</button>
+        <button id="btn-export-preset" title="Export JSON">⬇</button>
+        <input type="file" id="input-import-file" accept=".json" style="display:none">
+        <button id="btn-import-preset" title="Import JSON">⬆</button>
+      </div>
+    </header>
+
+    <div id="canvas-container">
+      <canvas id="viz-canvas"></canvas>
+    </div>
+
+    <div id="voices-panel">
+      <div id="voices-panel-header">
+        <h2>Voices</h2>
+        <button id="btn-add-voice">＋ Add Voice</button>
+      </div>
+      <div id="voices-list"></div>
+    </div>
+  </div>
+
+  <div id="modal-overlay" class="hidden">
+    <div id="modal">
+      <div id="modal-header">
+        <h3 id="modal-title">Presets</h3>
+        <button id="modal-close">✕</button>
+      </div>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="js/parser.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/visualizer.js"></script>
+  <script src="js/presets.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
