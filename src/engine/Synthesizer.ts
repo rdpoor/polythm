@@ -1,20 +1,38 @@
+import type { SampleLibrary } from './SampleLibrary.js';
+
 /**
  * Synthesizes GM percussion sounds using the Web Audio API.
  *
  * Each of the 47 GM percussion notes (35–81) is mapped to one of five
  * synthesis families; parameters within each family are tuned per note so
  * adjacent instruments sound distinct.
+ *
+ * When a SampleLibrary is provided and has a decoded buffer for the requested
+ * note, the sample is played instead of synthesized audio.
  */
 export class Synthesizer {
   private readonly ctx: AudioContext;
   private readonly destination: AudioNode;
+  private readonly sampleLib: SampleLibrary;
 
-  constructor(ctx: AudioContext, destination: AudioNode) {
+  constructor(ctx: AudioContext, destination: AudioNode, sampleLib: SampleLibrary) {
     this.ctx = ctx;
     this.destination = destination;
+    this.sampleLib = sampleLib;
   }
 
   scheduleHit(note: number, amplitude: number, time: number): void {
+    const buf = this.sampleLib.getBuffer(note);
+    if (buf) {
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf;
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(amplitude, time);
+      src.connect(gain);
+      gain.connect(this.destination);
+      src.start(time);
+      return;
+    }
     if (note >= 35 && note <= 36) {
       this.scheduleBass(note, amplitude, time);
     } else if (note === 37 || note === 39 || (note >= 75 && note <= 77)) {

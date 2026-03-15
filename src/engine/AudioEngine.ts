@@ -1,4 +1,5 @@
 import type { AppState } from '../model/types.js';
+import { SampleLibrary } from './SampleLibrary.js';
 import { Synthesizer } from './Synthesizer.js';
 import { Scheduler } from './Scheduler.js';
 
@@ -13,6 +14,7 @@ type EngineState = 'stopped' | 'playing' | 'paused';
 export class AudioEngine {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
+  private sampleLib: SampleLibrary | null = null;
   private synth: Synthesizer | null = null;
   private scheduler: Scheduler | null = null;
 
@@ -40,8 +42,10 @@ export class AudioEngine {
       this.ctx = new AudioContext();
       this.masterGain = this.ctx.createGain();
       this.masterGain.connect(this.ctx.destination);
-      this.synth = new Synthesizer(this.ctx, this.masterGain);
+      this.sampleLib = new SampleLibrary();
+      this.synth = new Synthesizer(this.ctx, this.masterGain, this.sampleLib);
       this.scheduler = new Scheduler(this.synth);
+      this.sampleLib.load(this.ctx);
       this.scheduler.onHit = this._onHit;
     }
 

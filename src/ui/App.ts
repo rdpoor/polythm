@@ -38,7 +38,7 @@ function buildSnapPoints(denoms: number[]): SnapPoint[] {
   return [...seen.values()].sort((a, b) => a.value - b.value);
 }
 
-const OFFSET_SNAPS = buildSnapPoints([1, 2, 3, 4, 6, 8]);
+const OFFSET_SNAPS = buildSnapPoints([1, 2, 3, 4, 6, 8, 9, 12, 16]);
 
 /** Returns the snap point nearest to raw by absolute distance. */
 function quantizeOffset(raw: number, snaps: SnapPoint[]): SnapPoint {
